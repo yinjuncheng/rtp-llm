@@ -211,7 +211,8 @@ class ChatCompletionTokenLogprob(BaseModel):
     token: str
     bytes: Optional[List[int]] = None
     logprob: float
-    top_logprobs: List[TopLogprob]
+    top_logprobs: Optional[List[TopLogprob]] = None
+    select_logprobs: Optional[List[TopLogprob]] = None
 
 
 class ChoiceLogprobs(BaseModel):
