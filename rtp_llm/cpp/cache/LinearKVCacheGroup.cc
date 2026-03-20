@@ -69,7 +69,8 @@ MatchResult LinearKVCacheGroup::matchSingleKey(CacheKeyType cache_key) const {
 }
 
 MatchResult LinearKVCacheGroup::match(const CacheKeysType&                 cache_keys,
-                                      const std::vector<std::vector<int>>& mm_intervals) {
+                                      const std::vector<std::vector<int>>& mm_intervals,
+                                      int64_t                              current_batch_epoch) {
     return {};
 }
 
@@ -139,7 +140,8 @@ bool LinearKVCacheGroup::malloc(BlockIndicesType& block_indices,
 
 void LinearKVCacheGroup::insertIntoCache(const CacheKeysType&    cache_keys,
                                          const BlockIndicesType& block_indices,
-                                         bool                    is_resident) {
+                                         bool                    is_resident,
+                                         int64_t                 epoch) {
     if (cache_keys.empty() || block_indices.empty()) {
         return;
     }
@@ -154,8 +156,23 @@ void LinearKVCacheGroup::insertIntoCache(const CacheKeysType&    cache_keys,
         item.group_id    = group_id_;
         item.block_index = b;
         item.is_resident = is_resident;
-        if (block_cache_->put(item)) {
-            block_pool_->blockCacheReference(b);
+        item.epoch       = epoch;
+
+        auto result = block_cache_->put(item);
+        switch (result.action) {
+            case BlockCache::PutResult::Action::SKIPPED:
+                continue;
+
+            case BlockCache::PutResult::Action::REPLACED:
+                if (result.old_block_index != b) {
+                    block_pool_->blockCacheFree(result.old_block_index);
+                    block_pool_->blockCacheReference(b);
+                }
+                break;
+
+            case BlockCache::PutResult::Action::INSERTED:
+                block_pool_->blockCacheReference(b);
+                break;
         }
     }
 }

@@ -78,6 +78,9 @@ protected:
     std::vector<EngineScheduleInfo::TaskInfo> waiting_task_list_;
     std::vector<EngineScheduleInfo::TaskInfo> running_task_list_;
 
+    // Static atomic counter for generating unique batch Epoch IDs (shared across all scheduler instances)
+    static std::atomic<int64_t> batch_epoch_counter_;
+
     // TODO @wangyin support different beams run togather
 };
 

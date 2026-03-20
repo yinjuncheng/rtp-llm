@@ -154,28 +154,36 @@ AttentionModuleOutput CudaDevice::contextAttention(const AttentionModuleParams& 
         }
     }
 
-    if (fmha_type_ == FMHAType::NONE && prefix_prompt_param.max_prefix_prompt_length > 0) {
-        DISPATCH_CUDA_FUNCTION_DATA_TYPE(datatype,
-                                         invokeLoadPrefixKVCache,
-                                         q_output->data(),
-                                         k_output->data(),
-                                         v_output->data(),
-                                         &prefix_prompt_param,
-                                         batch_size,
-                                         seq_len,
-                                         head_num,
-                                         kv_head_num,
-                                         size_per_head,
-                                         nullptr,  // scale_out_ptr,
-                                         0,        // int8_mode,
-                                         stream_);
-        check_cuda_error();
-    }
-
     // if all condition satisfy, no need to do invokeAddFusedQKVBiasTranspose
     bool skip_add_bias_transpose = (params.configs.rope_config.style == RopeStyle::No && !params.common.kv_cache
                                     && !params.configs.fuse_qkv_add_bias && fmha_type_ != FMHAType::NONE);
     RTP_LLM_LOG_DEBUG("skip_add_bias_transpose: %d", skip_add_bias_transpose);
+
+    // In batch-reuse scenario, when fmha_type_ is NONE, write K/V cache first, then load prefix K/V cache.
+    // This ensures the second request can read from the cache written by the first request.
+    bool need_batch_reuse_flow = (fmha_type_ == FMHAType::NONE && prefix_prompt_param.max_prefix_prompt_length > 0
+                                  && params.common.kv_cache.has_value() && batch_size > 1);
+
+    auto loadPrefixKVCache = [&]() {
+        if (fmha_type_ == FMHAType::NONE && prefix_prompt_param.max_prefix_prompt_length > 0) {
+            DISPATCH_CUDA_FUNCTION_DATA_TYPE(datatype,
+                                             invokeLoadPrefixKVCache,
+                                             q_output->data(),
+                                             k_output->data(),
+                                             v_output->data(),
+                                             &prefix_prompt_param,
+                                             batch_size,
+                                             seq_len,
+                                             head_num,
+                                             kv_head_num,
+                                             size_per_head,
+                                             nullptr,  // scale_out_ptr,
+                                             0,        // int8_mode,
+                                             stream_);
+            check_cuda_error();
+        }
+    };
+
     if (!skip_add_bias_transpose) {
         bool store_qkv = fmha_type_ != FMHAType::PAGED_TRT_V2 && fmha_type_ != FMHAType::NONE
                          && fmha_type_ != FMHAType::FLASH_INFER && fmha_type_ != FMHAType::XQA;
@@ -226,6 +234,12 @@ AttentionModuleOutput CudaDevice::contextAttention(const AttentionModuleParams& 
             stream_);
         check_cuda_error();
 
+        // In batch-reuse scenario, load prefix K/V cache after writing K/V cache.
+        // Same-stream kernel ordering guarantees the write completes before the load starts.
+        if (need_batch_reuse_flow) {
+            loadPrefixKVCache();
+        }
+
         if (!qkv_buf_fp8) {
             printBufferData(params.input, "after invoke transpse");
         } else {
@@ -243,6 +257,9 @@ AttentionModuleOutput CudaDevice::contextAttention(const AttentionModuleParams& 
         printBufferData(*q_output, "Q after invoke transpose");
         printBufferData(*k_output, "K after invoke transpose");
         printBufferData(*v_output, "V after invoke transpose");
+    } else {
+        // If skip_add_bias_transpose is true but still need to load prefix cache
+        loadPrefixKVCache();
     }
 
     computeInsertedMoE();

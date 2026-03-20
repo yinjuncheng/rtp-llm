@@ -119,19 +119,19 @@ TEST_F(HybridLayerKVCacheAllocatorTest, ReuseCache) {
 
     BlockCache::CacheItem item1   = {101, 0, 1, false};
     auto                  result1 = block_cache->put(item1);
-    EXPECT_TRUE(result1);
+    EXPECT_EQ(result1.action, BlockCache::PutResult::Action::INSERTED);
 
     BlockCache::CacheItem item2   = {102, 0, 2, false};
     auto                  result2 = block_cache->put(item2);
-    EXPECT_TRUE(result2);
+    EXPECT_EQ(result2.action, BlockCache::PutResult::Action::INSERTED);
 
     BlockCache::CacheItem item3   = {103, 0, 3, false};
     auto                  result3 = block_cache->put(item3);
-    EXPECT_TRUE(result3);
+    EXPECT_EQ(result3.action, BlockCache::PutResult::Action::INSERTED);
 
     BlockCache::CacheItem item4   = {102, 1, 4, false};
     auto                  result4 = block_cache->put(item4);
-    EXPECT_TRUE(result4);
+    EXPECT_EQ(result4.action, BlockCache::PutResult::Action::INSERTED);
 
     CacheKeysType   cache_keys{101, 102, 103, 104};
     KVCacheResource resource;
@@ -147,7 +147,7 @@ TEST_F(HybridLayerKVCacheAllocatorTest, ReuseCache) {
 
     BlockCache::CacheItem item5   = {102, 2, 5, false};
     auto                  result5 = block_cache->put(item5);
-    EXPECT_TRUE(result5);
+    EXPECT_EQ(result5.action, BlockCache::PutResult::Action::INSERTED);
 
     int reuse_blocks2 = allocator_->reuseCache(cache_keys, resource);
     ASSERT_EQ(reuse_blocks2, 2);
@@ -238,16 +238,16 @@ TEST_F(HybridLayerKVCacheAllocatorTest, initMallocForCommonLenSingleBatch) {
     auto                  block_cache = block_pool->blockCache();
     BlockCache::CacheItem item1       = {101, 0, 1, false};
     auto                  result1     = block_cache->put(item1);
-    EXPECT_TRUE(result1);
+    EXPECT_EQ(result1.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item2   = {102, 0, 2, false};
     auto                  result2 = block_cache->put(item2);
-    EXPECT_TRUE(result2);
+    EXPECT_EQ(result2.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item3   = {102, 1, 3, false};
     auto                  result3 = block_cache->put(item3);
-    EXPECT_TRUE(result3);
+    EXPECT_EQ(result3.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item4   = {102, 2, 4, false};
     auto                  result4 = block_cache->put(item4);
-    EXPECT_TRUE(result4);
+    EXPECT_EQ(result4.action, BlockCache::PutResult::Action::INSERTED);
 
     auto batch_resource2                = createBatchKVCacheResource(1, 3);
     malloc_info.batch_kv_cache_resource = batch_resource2;
@@ -302,16 +302,16 @@ TEST_F(HybridLayerKVCacheAllocatorTest, initMallocForCommonLenMultiBatch) {
     auto                  block_cache = block_pool->blockCache();
     BlockCache::CacheItem item1       = {101, 0, 1, false};
     auto                  result1     = block_cache->put(item1);
-    EXPECT_TRUE(result1);
+    EXPECT_EQ(result1.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item2   = {102, 0, 2, false};
     auto                  result2 = block_cache->put(item2);
-    EXPECT_TRUE(result2);
+    EXPECT_EQ(result2.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item3   = {102, 1, 3, false};
     auto                  result3 = block_cache->put(item3);
-    EXPECT_TRUE(result3);
+    EXPECT_EQ(result3.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item4   = {102, 2, 4, false};
     auto                  result4 = block_cache->put(item4);
-    EXPECT_TRUE(result4);
+    EXPECT_EQ(result4.action, BlockCache::PutResult::Action::INSERTED);
 
     auto batch_resource2                = createBatchKVCacheResource(2, 3);
     malloc_info.batch_kv_cache_resource = batch_resource2;
@@ -388,16 +388,16 @@ TEST_F(HybridLayerKVCacheAllocatorTest, initMallocSingleBatch) {
     auto                  block_cache = block_pool->blockCache();
     BlockCache::CacheItem item1       = {101, 0, 1, false};
     auto                  result1     = block_cache->put(item1);
-    EXPECT_TRUE(result1);
+    EXPECT_EQ(result1.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item2   = {102, 0, 2, false};
     auto                  result2 = block_cache->put(item2);
-    EXPECT_TRUE(result2);
+    EXPECT_EQ(result2.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item3   = {102, 1, 3, false};
     auto                  result3 = block_cache->put(item3);
-    EXPECT_TRUE(result3);
+    EXPECT_EQ(result3.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item4   = {102, 2, 4, false};
     auto                  result4 = block_cache->put(item4);
-    EXPECT_TRUE(result4);
+    EXPECT_EQ(result4.action, BlockCache::PutResult::Action::INSERTED);
 
     auto batch_resource2                = createBatchKVCacheResource(1, 3);
     malloc_info.batch_kv_cache_resource = batch_resource2;
@@ -452,16 +452,16 @@ TEST_F(HybridLayerKVCacheAllocatorTest, initMallocMultiBatch) {
     auto                  block_cache = block_pool->blockCache();
     BlockCache::CacheItem item1       = {101, 0, 1, false};
     auto                  result1     = block_cache->put(item1);
-    EXPECT_TRUE(result1);
+    EXPECT_EQ(result1.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item2   = {102, 0, 2, false};
     auto                  result2 = block_cache->put(item2);
-    EXPECT_TRUE(result2);
+    EXPECT_EQ(result2.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item3   = {102, 1, 3, false};
     auto                  result3 = block_cache->put(item3);
-    EXPECT_TRUE(result3);
+    EXPECT_EQ(result3.action, BlockCache::PutResult::Action::INSERTED);
     BlockCache::CacheItem item4   = {102, 2, 4, false};
     auto                  result4 = block_cache->put(item4);
-    EXPECT_TRUE(result4);
+    EXPECT_EQ(result4.action, BlockCache::PutResult::Action::INSERTED);
 
     auto batch_resource2                = createBatchKVCacheResource(2, 3);
     malloc_info.batch_kv_cache_resource = batch_resource2;

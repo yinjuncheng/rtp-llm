@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <sstream>
 
 #include "rtp_llm/cpp/utils/LRUCache.h"
 #include "rtp_llm/cpp/cache/Types.h"
@@ -23,6 +24,14 @@ public:
         GroupIdType  group_id;
         BlockIdxType block_index;
         bool         is_resident = false;
+        int64_t      epoch       = 0;  // Epoch ID: 0 = global visible, >0 = batch-specific
+        std::string  debugString() const {
+            std::stringstream debug_string;
+            debug_string << "CacheItem cache_key: " << cache_key << ", group_id: " << group_id
+                         << ", block_index: " << block_index << ", is_resident: " << is_resident
+                         << ", epoch: " << epoch;
+            return debug_string.str();
+        }
     };
 
     struct BatchMatchResult {
@@ -31,6 +40,17 @@ public:
 
     struct MatchResult {
         BlockIdxType matched_index;
+    };
+
+    struct PutResult {
+        enum class Action {
+            INSERTED,  // New item inserted
+            REPLACED,  // Replaced old item (need to free old block, reference new block)
+            SKIPPED    // Skipped (epoch priority, no update needed)
+        };
+
+        Action       action;
+        BlockIdxType old_block_index;  // Old block index if replaced, otherwise NULL_BLOCK_IDX
     };
 
     using LRUCacheType  = LRUCache<CacheKeyGroupPair,
@@ -42,15 +62,18 @@ public:
 public:
     explicit BlockCache(): lru_cache_(kCacheMaxCapacity) {}
 
-    bool put(CacheItem& cache_item);
+    PutResult put(CacheItem& cache_item);
+
+    // Remove a cache entry by key. Returns the removed CacheItem if found, std::nullopt otherwise.
+    std::optional<CacheItem> remove(CacheKeyType cache_key, int group_id = 0);
 
     bool contains(CacheKeyType cache_key, int group_id = 0) const;
 
-    MatchResult match(CacheKeyType cache_key, int group_id = 0);
+    static constexpr int64_t NO_EPOCH_FILTER = -1;
+
+    MatchResult match(CacheKeyType cache_key, int group_id = 0, int64_t current_batch_epoch = NO_EPOCH_FILTER);
 
     BlockIndicesType pop(int n);
-
-    std::optional<CacheItem> remove(CacheKeyType cache_key, int group_id = 0);
 
     // Select and remove LRU cache entries until at least min_blocks are freed.
     // Skips resident entries and keys that have any resident item.
@@ -70,8 +93,6 @@ public:
 private:
     size_t       seq_size_per_block_;
     LRUCacheType lru_cache_;
-    // NOTE: BlockCache/LRUCache is accessed from multiple RPC/engine threads.
-    // LRUCache is NOT thread-safe (unordered_map + list). Guard all accesses here.
     mutable std::mutex mu_;
 };
 
