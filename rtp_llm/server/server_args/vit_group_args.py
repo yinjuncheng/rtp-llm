@@ -160,6 +160,7 @@ def init_vit_group_args(parser, vit_config):
     vit_group.add_argument(
         "--biencoder_preprocess",
         env_name="BIENCODER_PREPROCESS",
+        bind_to=(vit_config, "biencoder_preprocess"),
         type=bool,
         default=False,
         help="是否开启biencoder预处理",
